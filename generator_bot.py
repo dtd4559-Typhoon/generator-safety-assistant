@@ -1,99 +1,167 @@
 import streamlit as st
 import requests
 import json
-from datetime import datetime
 import time
 
 # --- Page Configuration (Professional Dark Mode) ---
 st.set_page_config(
     page_title="UNCW Generator Safety Guide",
     page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",  # Changed to centered for better chat alignment
+    initial_sidebar_state="collapsed"  # Start with sidebar collapsed for cleaner look
 )
 
-# --- Custom CSS for DeepSeek-style Dark Mode ---
+# --- Custom CSS for Clean Dark Mode ---
 st.markdown("""
 <style>
+    /* Main background */
     .stApp {
         background-color: #1E1E1E !important;
-        color: #E0E0E0 !important;
     }
-    [data-testid="stSidebar"] {
-        background-color: #252525 !important;
-        border-right: 1px solid #3A3A3A;
+    
+    /* Center the main content */
+    .main .block-container {
+        max-width: 800px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
     }
+    
+    /* Chat messages */
     .stChatMessage {
         background-color: #2D2D2D !important;
         border: 1px solid #3A3A3A !important;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 10px;
+        border-radius: 12px !important;
+        padding: 1rem !important;
+        margin: 0.5rem 0 !important;
     }
-    div[data-testid="stChatMessage"] {
+    
+    /* User messages */
+    [data-testid="user-message"] {
         background-color: #2A2A2A !important;
+        border-left: 4px solid #0078D7 !important;
     }
-    .stChatMessage:has(div[data-testid="stChatMessageContent"]):nth-child(even) {
+    
+    /* Assistant messages */
+    [data-testid="assistant-message"] {
         background-color: #252525 !important;
-        border-left: 4px solid #00A36C;
+        border-left: 4px solid #00A36C !important;
     }
-    .stTextInput > div > div > input {
+    
+    /* Chat input */
+    .stChatInputContainer {
+        padding: 1rem 0 !important;
+    }
+    
+    .stChatInputContainer input {
         background-color: #2D2D2D !important;
         color: #E0E0E0 !important;
         border: 1px solid #3A3A3A !important;
-        border-radius: 8px;
-        padding: 12px;
+        border-radius: 25px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-size: 1rem !important;
     }
-    .stTextInput > div > div > input:focus {
+    
+    .stChatInputContainer input:focus {
         border-color: #0078D7 !important;
-        box-shadow: 0 0 0 2px rgba(0,120,215,0.3);
+        box-shadow: 0 0 0 2px rgba(0,120,215,0.3) !important;
     }
-    .stButton > button {
-        background-color: #0078D7 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 6px !important;
-        padding: 10px 24px !important;
+    
+    /* Title */
+    h1 {
+        color: #FFFFFF !important;
+        font-size: 2.2rem !important;
         font-weight: 500 !important;
+        text-align: center !important;
+        margin-bottom: 0.5rem !important;
     }
-    .stButton > button:hover {
-        background-color: #005A9E !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    
+    .subtitle {
+        color: #888 !important;
+        text-align: center !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 2rem !important;
     }
-    a {
+    
+    /* Footer */
+    .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #1E1E1E;
+        border-top: 1px solid #3A3A3A;
+        padding: 0.75rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #888;
+        z-index: 100;
+    }
+    
+    .footer a {
         color: #4CAF50 !important;
         text-decoration: none;
-        border-bottom: 1px dotted #4CAF50;
+        margin: 0 0.5rem;
     }
-    a:hover {
-        color: #81C784 !important;
-        border-bottom: 1px solid #81C784;
+    
+    .footer a:hover {
+        text-decoration: underline;
     }
-    h1, h2, h3 {
-        color: #FFFFFF !important;
-        font-weight: 400 !important;
-        border-bottom: 1px solid #3A3A3A;
-        padding-bottom: 10px;
+    
+    /* Sidebar toggle - hide by default */
+    [data-testid="collapsedControl"] {
+        display: none !important;
     }
+    
+    /* Clear button styling */
+    .stButton > button {
+        background-color: #2D2D2D !important;
+        color: #E0E0E0 !important;
+        border: 1px solid #3A3A3A !important;
+        border-radius: 20px !important;
+        padding: 0.4rem 1rem !important;
+        font-size: 0.8rem !important;
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+        width: auto !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #3A3A3A !important;
+        border-color: #0078D7 !important;
+    }
+    
+    /* Hide default footer */
     footer {
-        visibility: hidden;
+        display: none !important;
+    }
+    
+    /* View profile button hide */
+    .viewprofile {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Initialize Session State ---
-if "messages" not in st.session_state:
+# --- Clear conversation function ---
+def clear_conversation():
     st.session_state.messages = [
-        {"role": "assistant", "content": "⚡ Hello, I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages. Before we begin, please tell me: Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?"}
+        {"role": "assistant", "content": "👋 Hello, I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages.\n\nBefore we begin, please tell me: Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?"}
     ]
 
+# --- Initialize Session State ---
+if "messages" not in st.session_state:
+    clear_conversation()
+
 # --- GROQ API CONFIGURATION ---
-# This pulls the API key from Streamlit Secrets (set in Streamlit Cloud dashboard)
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]  # DO NOT hardcode your key here!
+GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # --- COMPLETE SYSTEM PROMPT ---
-SYSTEM_PROMPT = """[ROLE]
+SYSTEM_PROMPT = """IMPORTANT: Never use <think> tags or show your reasoning process. Just respond directly to the user.
+
+[ROLE]
 You are an AI assistant for students at UNCW, providing clear, practical guidance on safe generator use during hurricanes or emergencies. You focus on safety, proper setup, operation, maintenance, and fuel handling, giving students actionable steps to prevent accidents, carbon monoxide poisoning, or fire hazards. You explain instructions clearly and concisely, prioritizing the most critical safety actions first, and reference official guidelines when possible.
 
 [GOAL]
@@ -136,51 +204,25 @@ Answer questions about generator safety for UNCW students during hurricanes. Add
 
 4. Actionable Instruction Delivery: Based on the assessed situation, provide two specific actions the student can take immediately. First Action (Urgent Priority): State clearly, explain step-by-step, specify where/when, connect to hazard prevented. Second Action (Reinforcing or Secondary Protection): Provide complementary action, explain how it adds safety, give timing guidance.
 
-5. Verification and Referral: After delivering instructions, verify the student understands with one confirmation question. For questions outside scope, provide clear referral information with specific resources. End every conversation by summarizing the key safety point and encouraging safe practices: "Remember, generators belong outside only, at least 20 feet from your home, with working CO detectors inside. Stay safe during the storm." """
+5. Verification and Referral: After delivering instructions, verify the student understands with one confirmation question. For questions outside scope, provide clear referral information with specific resources. End every conversation by summarizing the key safety point and encouraging safe practices."""
 
-# --- Sidebar ---
-with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/en/thumb/5/5f/UNCW_seal.svg/1200px-UNCW_seal.svg.png", width=100)
-    st.title("⚡ UNCW Generator Safety")
-    st.markdown("---")
-    
-    st.markdown("### 📌 Quick Safety Tips")
-    st.info(
-        "• **NEVER** run a generator indoors\n"
-        "• Keep generator **20+ feet** from home\n"
-        "• Install **CO detectors** on every level\n"
-        "• Let generator **cool** before refueling\n"
-        "• Never plug into a wall outlet"
-    )
-    
-    st.markdown("### 🔗 Official Resources")
-    st.markdown("""
-    - [🏫 UNCW Hurricane Guide](https://uncw.edu/about/university-administration/business-affairs/environmental-health-safety/ems/severe-weather/hurricane)
-    - [🚨 UNCW Emergency & Safety](https://uncw.edu/emergency-safety)
-    - [🌪️ National Hurricane Center](https://www.nhc.noaa.gov)
-    - [🪫 Red Cross Generator Safety](https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html)
-    """)
-    
-    st.markdown("---")
-    st.markdown("### ⚙️ Powered by")
-    st.markdown("**Groq + Qwen 3 32B** ⚡")
-    
+# --- Title ---
+st.title("UNCW Generator Safety Guide")
+st.markdown('<p class="subtitle">Powered by Groq + Qwen 3 32B</p>', unsafe_allow_html=True)
+
+# --- Clear button ---
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
     if st.button("🗑️ Clear Conversation", use_container_width=True):
-        st.session_state.messages = [
-            {"role": "assistant", "content": "⚡ Hello, I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages. Before we begin, please tell me: Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?"}
-        ]
+        clear_conversation()
         st.rerun()
 
-# --- Main Chat Interface ---
-st.title("⚡ UNCW Generator Safety Guide")
-st.caption("Powered by Groq + Qwen 3 32B • Ask me anything about generator safety!")
-
-# Display chat messages
+# --- Display chat messages ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input
+# --- Chat input ---
 if prompt := st.chat_input("Ask about generator safety, placement, CO detectors, fuel storage..."):
     # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -223,15 +265,13 @@ Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
             full_response = ""
             
             try:
-                # Prepare the API call
                 headers = {
                     "Authorization": f"Bearer {GROQ_API_KEY}",
                     "Content-Type": "application/json"
                 }
                 
-                # CORRECT model name from Groq
                 payload = {
-                    "model": "qwen/qwen3-32b",  # This is the EXACT name from Groq
+                    "model": "qwen/qwen3-32b",
                     "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt}
@@ -241,7 +281,6 @@ Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
                     "stream": True
                 }
                 
-                # Make the request
                 response = requests.post(
                     GROQ_API_URL,
                     headers=headers,
@@ -251,7 +290,6 @@ Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
                 )
                 
                 if response.status_code == 200:
-                    # Stream the response
                     for line in response.iter_lines():
                         if line:
                             try:
@@ -270,25 +308,24 @@ Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
                             except:
                                 continue
                     
-                    # Add resource links
-                    full_response += "\n\n📌 **Resources:**\n- [UNCW Emergency](https://uncw.edu/emergency-safety)\n- [Red Cross Generator Safety](https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html)"
                     message_placeholder.markdown(full_response)
                 else:
-                    # If API fails, show helpful response
-                    full_response = f"⚠️ API Error ({response.status_code}). But remember: Generators go OUTSIDE only, 20+ feet from home!"
-                    message_placeholder.markdown(full_response)
+                    message_placeholder.markdown("⚠️ Having trouble connecting. Please try again.")
                 
             except Exception as e:
-                full_response = f"⚠️ Connection Error. But remember: Generators go OUTSIDE only, 20+ feet from home!"
-                message_placeholder.markdown(full_response)
+                message_placeholder.markdown("⚠️ Connection issue. Please check your internet and try again.")
             
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            st.session_state.messages.append({"role": "assistant", "content": full_response if full_response else "⚠️ Unable to get response."})
 
-# --- Footer ---
-st.markdown("---")
-st.markdown(
-    "<div style='text-align: center; color: #888; padding: 20px;'>"
-    "⚡ **Remember**: Generators belong OUTSIDE only, at least 20 feet from your home. Stay safe, Seahawks! ⚡"
-    "</div>",
-    unsafe_allow_html=True
-)
+# --- Footer with official resources ---
+st.markdown("""
+<div class="footer">
+    <span style="color: #888;">Official Resources:</span>
+    <a href="https://uncw.edu/emergency-safety" target="_blank">UNCW Emergency</a> • 
+    <a href="https://www.nhc.noaa.gov" target="_blank">National Hurricane Center</a> • 
+    <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html" target="_blank">Red Cross Generator Safety</a> • 
+    <a href="https://uncw.edu/about/university-administration/business-affairs/environmental-health-safety/ems/severe-weather/hurricane" target="_blank">UNCW Hurricane Guide</a>
+    <br>
+    <span style="color: #666; font-size: 0.7rem;">Emergency: 911 | Poison Control: 1-800-222-1222</span>
+</div>
+""", unsafe_allow_html=True)
