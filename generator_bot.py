@@ -1,265 +1,247 @@
 import streamlit as st
 import requests
 import json
-import time
 
-# --- Page Configuration (Professional Dark Mode) ---
+# --- Page Configuration ---
 st.set_page_config(
     page_title="UNCW Generator Safety Guide",
     page_icon="⚡",
-    layout="centered",  # Changed to centered for better chat alignment
-    initial_sidebar_state="collapsed"  # Start with sidebar collapsed for cleaner look
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS for Clean Dark Mode ---
+# --- Custom CSS for Professional Dark Mode ---
 st.markdown("""
 <style>
     /* Main background */
     .stApp {
-        background-color: #1E1E1E !important;
+        background-color: #1A1A1A !important;
+        color: #E0E0E0 !important;
     }
     
-    /* Center the main content */
-    .main .block-container {
-        max-width: 800px;
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #202020 !important;
+        border-right: 1px solid #333333;
+        padding: 2rem 1rem;
     }
     
     /* Chat messages */
     .stChatMessage {
-        background-color: #2D2D2D !important;
-        border: 1px solid #3A3A3A !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-        margin: 0.5rem 0 !important;
+        background-color: #252525 !important;
+        border: 1px solid #333333 !important;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
     }
     
     /* User messages */
-    [data-testid="user-message"] {
-        background-color: #2A2A2A !important;
-        border-left: 4px solid #0078D7 !important;
+    [data-testid="stChatMessage"]:has(div[data-testid="stChatMessageContent"]):nth-child(odd) {
+        background-color: #282828 !important;
+        border-left: 4px solid #4A90E2;
     }
     
     /* Assistant messages */
-    [data-testid="assistant-message"] {
-        background-color: #252525 !important;
-        border-left: 4px solid #00A36C !important;
+    [data-testid="stChatMessage"]:has(div[data-testid="stChatMessageContent"]):nth-child(even) {
+        background-color: #232323 !important;
+        border-left: 4px solid #50C878;
     }
     
     /* Chat input */
     .stChatInputContainer {
-        padding: 1rem 0 !important;
+        padding: 1rem 0;
+        max-width: 900px;
+        margin: 0 auto;
     }
     
     .stChatInputContainer input {
-        background-color: #2D2D2D !important;
+        background-color: #252525 !important;
         color: #E0E0E0 !important;
-        border: 1px solid #3A3A3A !important;
-        border-radius: 25px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-size: 1rem !important;
+        border: 1px solid #333333 !important;
+        border-radius: 8px;
+        padding: 12px;
     }
     
-    .stChatInputContainer input:focus {
-        border-color: #0078D7 !important;
-        box-shadow: 0 0 0 2px rgba(0,120,215,0.3) !important;
+    /* Sidebar links */
+    .sidebar-links a {
+        color: #4A90E2 !important;
+        text-decoration: none;
+        display: block;
+        padding: 10px 0;
+        border-bottom: 1px solid #333333;
     }
     
-    /* Title */
-    h1 {
+    .sidebar-links a:hover {
+        color: #7FB3D5 !important;
+        padding-left: 5px;
+        transition: 0.2s;
+    }
+    
+    /* Headers */
+    h1, h2, h3 {
         color: #FFFFFF !important;
-        font-size: 2.2rem !important;
-        font-weight: 500 !important;
-        text-align: center !important;
-        margin-bottom: 0.5rem !important;
-    }
-    
-    .subtitle {
-        color: #888 !important;
-        text-align: center !important;
-        font-size: 0.9rem !important;
-        margin-bottom: 2rem !important;
     }
     
     /* Footer */
     .footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: #1E1E1E;
-        border-top: 1px solid #3A3A3A;
-        padding: 0.75rem;
         text-align: center;
-        font-size: 0.8rem;
-        color: #888;
-        z-index: 100;
+        padding: 20px;
+        color: #A0A0A0;
+        border-top: 1px solid #333333;
+        margin-top: 40px;
     }
     
     .footer a {
-        color: #4CAF50 !important;
+        color: #4A90E2 !important;
         text-decoration: none;
-        margin: 0 0.5rem;
+        margin: 0 10px;
     }
     
     .footer a:hover {
         text-decoration: underline;
     }
     
-    /* Sidebar toggle - hide by default */
-    [data-testid="collapsedControl"] {
-        display: none !important;
+    /* Emergency banner */
+    .emergency-banner {
+        background-color: #C0392B;
+        color: white;
+        padding: 12px;
+        border-radius: 6px;
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: bold;
     }
     
-    /* Clear button styling */
+    /* Buttons */
     .stButton > button {
-        background-color: #2D2D2D !important;
+        background-color: #252525 !important;
         color: #E0E0E0 !important;
-        border: 1px solid #3A3A3A !important;
-        border-radius: 20px !important;
-        padding: 0.4rem 1rem !important;
-        font-size: 0.8rem !important;
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        z-index: 1000;
-        width: auto !important;
+        border: 1px solid #333333 !important;
+        border-radius: 6px;
+        width: 100%;
     }
     
     .stButton > button:hover {
-        background-color: #3A3A3A !important;
-        border-color: #0078D7 !important;
+        background-color: #333333 !important;
+        border-color: #4A90E2 !important;
     }
     
-    /* Hide default footer */
-    footer {
-        display: none !important;
-    }
-    
-    /* View profile button hide */
-    .viewprofile {
-        display: none !important;
+    /* Info boxes */
+    .stAlert {
+        background-color: #282828 !important;
+        border: 1px solid #333333 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Clear conversation function ---
-def clear_conversation():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "👋 Hello, I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages.\n\nBefore we begin, please tell me: Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?"}
-    ]
-
 # --- Initialize Session State ---
 if "messages" not in st.session_state:
-    clear_conversation()
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hello, I'm your UNCW Generator Safety Guide. How can I help with generator safety today?"}
+    ]
 
-# --- GROQ API CONFIGURATION ---
+# --- GROQ API ---
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# --- COMPLETE SYSTEM PROMPT ---
-SYSTEM_PROMPT = """IMPORTANT: Never use <think> tags or show your reasoning process. Just respond directly to the user.
+# --- SYSTEM PROMPT (No <think> tags, direct responses) ---
+SYSTEM_PROMPT = """You are an AI assistant for UNCW students on generator safety during hurricanes. Respond directly to any message. Focus on safety advice. Never use <think> tags or show reasoning. Provide clear, practical guidance.
 
 [ROLE]
-You are an AI assistant for students at UNCW, providing clear, practical guidance on safe generator use during hurricanes or emergencies. You focus on safety, proper setup, operation, maintenance, and fuel handling, giving students actionable steps to prevent accidents, carbon monoxide poisoning, or fire hazards. You explain instructions clearly and concisely, prioritizing the most critical safety actions first, and reference official guidelines when possible.
+Provide guidance on safe generator use, setup, operation, maintenance, and fuel handling.
 
 [GOAL]
-Identify exactly two specific safety or preparedness actions that the student can take immediately to improve their readiness for using a generator during a hurricane. Each action must be practical, actionable, and achievable today, such as repositioning the generator, checking fuel storage, or setting up safety equipment. Each action should clearly explain what to do, why it matters, and how to apply it safely, so the student can complete it without delay. Prioritize the action that addresses the most urgent safety risk first.
+Identify two immediate safety actions. Prioritize urgent risks.
 
 [DEFINITIONS]
-Carbon monoxide (CO) — A colorless, odorless, poisonous gas produced by burning fuel in generators; called the "silent killer" because it can't be seen or smelled. It binds to blood 250 times more strongly than oxygen, causing headaches, dizziness, nausea, unconsciousness, or death in minutes. Primary cause of generator-related fatalities during hurricanes. 
-Portable generator — A fuel-powered (usually gasoline) device that produces electricity during outages; must be used outdoors only to avoid CO buildup. Never indoors, in garages, basements, sheds, or partially enclosed spaces—even with doors/windows open. 
-Carbon monoxide poisoning — Illness or death from inhaling CO fumes; symptoms mimic flu or intoxication. Prevent by placing generator ≥20 feet from doors, windows, vents; directing exhaust away; installing battery-powered CO detectors on every home level. 
-Backfeed (or backfeeding) — Dangerous situation where generator power flows backward into utility lines, electrocuting repair workers or starting fires. Prevent by never plugging generator into a wall outlet; use transfer switch or plug appliances directly. 
-Grounding — Connecting generator to earth/ground per manufacturer instructions to prevent electric shock. Use grounded extension cords and follow manual for setup. 
-Approved fuel container — DOT- or EPA-approved gas can (typically ≤5 gallons) for safe storage; store fuel outside home in cool, ventilated, secure spot away from generator/appliances to avoid vapors igniting or spills. 
-Refueling hazard — Risk of fire/explosion from adding fuel to hot engine. Always shut off generator, let cool ≥10-30 minutes (per manual), then refuel outdoors away from ignition sources. 
-Wet conditions hazard — Risk of electrocution when generator/equipment is wet from rain/flooding. Operate only on dry surface, under cover (not enclosed), keep extension cords dry, never touch with wet hands. 
-Hurricane Watch — NOAA announcement that hurricane conditions (winds ≥74 mph) are possible in area within 48 hours; time to finalize generator setup and safety checks. 
-Hurricane Warning — NOAA announcement that hurricane conditions are expected in area within 36 hours; take immediate protective actions, including generator positioning. 
-UNCW (University of North Carolina Wilmington) — Local university in Wilmington, NC; students should note coastal flood risks, frequent outages from hurricanes, and follow university emergency alerts for campus-specific guidance. 
-New Hanover County — County containing Wilmington/UNCW; local emergency management issues hurricane alerts, evacuation orders, and recovery info relevant to off-campus students. 
-CO detector (carbon monoxide alarm) — Battery-powered or plug-in device with battery backup that sounds alarm for dangerous CO levels; install on every level and near sleeping areas; test monthly and replace batteries as needed.
+Carbon monoxide (CO) — Colorless, odorless gas; causes headaches, dizziness, death.
+Portable generator — Use outdoors only, 20+ feet from home.
+CO detector — Install on every level.
+Backfeed — Never plug into wall outlet.
+Refueling — Cool 15+ minutes first.
+Wet conditions — Keep dry.
 
 [CONSTRAINTS]
-Do not provide advice on modifying, repairing, or customizing generators; direct users to licensed professionals or manufacturer support.
-Do not recommend using generators indoors, in enclosed spaces, or near windows/doors under any circumstances.
-Do not speculate on hurricane forecasts, evacuation orders, or power outage durations; refer users to NOAA, New Hanover County Emergency Management, or UNCW alerts.
-Do not answer questions outside generator safety, setup, operation, maintenance, or fuel handling during emergencies (e.g., general electrical wiring, fuel alternatives, or non-hurricane disasters).
-Do not endorse specific generator brands, models, or retailers; stick to general safety principles from official sources like FEMA, CDC, and NFPA.
-Do not give medical advice for CO poisoning or injuries; instruct users to call 911 or poison control immediately.
-Do not suggest bypassing safety features or using unapproved equipment/extensions.
-Do not provide legal advice on liability, insurance, or regulations; refer to local authorities.
+No indoor use. No medical advice; call 911. No forecasts; refer to NOAA. No brands.
 
 [TASK]
-Answer questions about generator safety for UNCW students during hurricanes. Address proper generator placement, including the critical requirement to operate generators outdoors only, at least 20 feet from doors, windows, and vents. Explain the dangers of carbon monoxide poisoning, including symptoms, the importance of battery-powered CO detectors on every level of the home, and immediate actions to take if poisoning is suspected. Provide guidance on safe fuel handling, including approved containers, proper storage locations away from living areas, and the mandatory cooling period before refueling. Instruct on electrical safety, including proper extension cord selection, avoiding overloads, and the absolute prohibition against backfeeding (plugging into wall outlets). Explain pre-hurricane preparation steps such as test running generators, checking oil and filters, and assembling generator-specific emergency supplies. Address maintenance questions for between uses and after hurricane season. Direct students to official sources for hurricane forecasts (NOAA), local evacuation orders (New Hanover County Emergency Management), and campus closures (UNCW Alerts). When questions involve immediate danger such as indoor generator use, suspected carbon monoxide symptoms, or operating in wet conditions, provide urgent warnings with specific life-saving actions. For questions outside the bot's scope including medical advice, electrical installation, legal interpretations, or brand recommendations, refer students to appropriate professionals or authorities.
+Answer on generator safety. Give urgent warnings for dangers.
 
 [PROCESS]
-1. Initial Greeting and Situation Assessment: Begin every conversation by establishing purpose and assessing situation. Ask two critical screening questions: "Are you dealing with a power outage right now, or are you preparing before a hurricane?" and "Is your generator currently running, or are you planning to use it soon?" If the student mentions any symptoms like headache, dizziness, or nausea, immediately trigger carbon monoxide emergency protocol: direct them to leave area and call 911 before any further discussion.
+1. Assess situation.
+2. Detect dangers.
+3. Warn if needed.
+4. Provide two actions.
+5. End with reminder."""
 
-2. Danger Signal Detection and Triage: After initial assessment, analyze the student's full question for specific danger signals. Scan for these red flags in order of priority: Indoor/Enclosed Space Mentions, Carbon Monoxide Indicators, Wet Conditions, Refueling Concerns, Electrical Hazards, Fuel Safety Issues. If any immediate life-threatening danger is detected, respond with an urgent warning before proceeding to any other questions.
-
-3. Focused Information Gathering: If no immediate danger is detected, gather additional context needed to provide specific, actionable guidance. Ask targeted follow-up questions based on the topic. Limit follow-up questions to two or three. Continuously monitor for any new danger signals.
-
-4. Actionable Instruction Delivery: Based on the assessed situation, provide two specific actions the student can take immediately. First Action (Urgent Priority): State clearly, explain step-by-step, specify where/when, connect to hazard prevented. Second Action (Reinforcing or Secondary Protection): Provide complementary action, explain how it adds safety, give timing guidance.
-
-5. Verification and Referral: After delivering instructions, verify the student understands with one confirmation question. For questions outside scope, provide clear referral information with specific resources. End every conversation by summarizing the key safety point and encouraging safe practices."""
-
-# --- Title ---
-st.title("UNCW Generator Safety Guide")
-st.markdown('<p class="subtitle">Powered by Groq + Qwen 3 32B</p>', unsafe_allow_html=True)
-
-# --- Clear button ---
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    if st.button("🗑️ Clear Conversation", use_container_width=True):
-        clear_conversation()
+# --- SIDEBAR (Resources and Safety Stuff) ---
+with st.sidebar:
+    st.markdown("## ⚡ Generator Safety Resources")
+    st.markdown("---")
+    
+    st.markdown("### 🛡️ Health & Safety Tips")
+    st.info(
+        "• Always outdoors, 20+ ft from home\n"
+        "• CO detectors on every level\n"
+        "• Cool before refueling\n"
+        "• No backfeeding\n"
+        "• Dry conditions only"
+    )
+    
+    st.markdown("### 🔗 Official Links")
+    st.markdown("""
+    <div class="sidebar-links">
+        <a href="https://uncw.edu/emergency-safety" target="_blank">UNCW Emergency</a>
+        <a href="https://www.nhc.noaa.gov" target="_blank">National Hurricane Center</a>
+        <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html" target="_blank">Red Cross Guide</a>
+        <a href="https://uncw.edu/about/university-administration/business-affairs/environmental-health-safety/ems/severe-weather/hurricane" target="_blank">UNCW Hurricane Prep</a>
+        <a href="https://www.cdc.gov/co/generatorsafetyfactsheet.html" target="_blank">CDC CO Safety</a>
+        <a href="https://www.fema.gov/fact-sheet/generator-safety" target="_blank">FEMA Generator Tips</a>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.markdown("### 🚨 Emergency Contacts")
+    st.markdown("**911** for emergencies")
+    st.markdown("**Poison Control:** 1-800-222-1222")
+    
+    st.markdown("---")
+    if st.button("🗑️ Clear Chat", use_container_width=True):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello, I'm your UNCW Generator Safety Guide. How can I help with generator safety today?"}
+        ]
         st.rerun()
 
-# --- Display chat messages ---
+# --- MAIN CHAT AREA ---
+st.title("⚡ UNCW Generator Safety Guide")
+st.caption("Professional guidance on safe generator use during emergencies")
+
+# Emergency banner
+st.markdown("""
+<div class="emergency-banner">
+    ⚠️ If dizzy, headache, or nauseous - GET FRESH AIR & CALL 911 IMMEDIATELY ⚠️
+</div>
+""", unsafe_allow_html=True)
+
+# Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Chat input ---
-if prompt := st.chat_input("Ask about generator safety, placement, CO detectors, fuel storage..."):
-    # Add user message
+# Chat input
+if prompt := st.chat_input("Ask about generator safety..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Check for emergencies
-    if any(word in prompt.lower() for word in ["headache", "dizzy", "nausea", "sick"]):
-        response = """**🚨 CARBON MONOXIDE EMERGENCY 🚨**
-
-1. **LEAVE THE AREA NOW** - Get to fresh air immediately
-2. **CALL 911** - This is a medical emergency
-3. **DO NOT GO BACK INSIDE**
-
-Carbon monoxide is odorless and colorless. These symptoms mean you need fresh air NOW."""
-        
-        with st.chat_message("assistant"):
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-    
-    elif any(word in prompt.lower() for word in ["inside", "garage", "basement", "room", "indoors"]):
-        response = """**⚠️ IMMEDIATE DANGER ⚠️**
-
-**STOP USING THE GENERATOR INDOORS.**
-
-1. **TURN IT OFF** right now
-2. **MOVE IT OUTSIDE** - at least 20 feet from any doors/windows
-3. **OPEN WINDOWS** to ventilate if anyone feels sick
-
-Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
-        
-        with st.chat_message("assistant"):
-            st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-    
+    # Handle emergencies directly
+    lower_prompt = prompt.lower()
+    if any(word in lower_prompt for word in ["headache", "dizzy", "nausea", "sick"]):
+        response = "🚨 POTENTIAL CO POISONING: Get fresh air now. Call 911. Do not re-enter until cleared."
+    elif any(word in lower_prompt for word in ["inside", "garage", "basement", "indoors"]):
+        response = "⚠️ DANGER: Turn off generator. Move outdoors 20+ ft from home. Indoor use kills."
     else:
-        # Call Groq API
+        # Call Groq API for fast response
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
@@ -270,62 +252,52 @@ Indoor generator use KILLS. Carbon monoxide builds up in minutes."""
                     "Content-Type": "application/json"
                 }
                 
+                messages_for_api = [{"role": "system", "content": SYSTEM_PROMPT}]
+                for msg in st.session_state.messages[-5:]:
+                    messages_for_api.append({"role": msg["role"], "content": msg["content"]})
+                
                 payload = {
-                    "model": "qwen/qwen3-32b",
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
+                    "model": "mixtral-8x7b-32768",  # Fast Groq model
+                    "messages": messages_for_api,
                     "temperature": 0.3,
                     "max_tokens": 1024,
                     "stream": True
                 }
                 
-                response = requests.post(
-                    GROQ_API_URL,
-                    headers=headers,
-                    json=payload,
-                    stream=True,
-                    timeout=30
-                )
+                response = requests.post(GROQ_API_URL, headers=headers, json=payload, stream=True, timeout=30)
                 
                 if response.status_code == 200:
                     for line in response.iter_lines():
                         if line:
-                            try:
-                                line = line.decode('utf-8')
-                                if line.startswith("data: "):
-                                    line = line[6:]
-                                if line == "[DONE]":
-                                    break
-                                    
-                                json_response = json.loads(line)
-                                if "choices" in json_response:
-                                    chunk = json_response["choices"][0]["delta"].get("content", "")
-                                    if chunk:
-                                        full_response += chunk
-                                        message_placeholder.markdown(full_response + "▌")
-                            except:
-                                continue
-                    
+                            line = line.decode('utf-8')
+                            if line.startswith("data: "):
+                                line = line[6:]
+                            if line == "[DONE]":
+                                break
+                            json_response = json.loads(line)
+                            if "choices" in json_response:
+                                chunk = json_response["choices"][0]["delta"].get("content", "")
+                                full_response += chunk
+                                message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
                 else:
-                    message_placeholder.markdown("⚠️ Having trouble connecting. Please try again.")
-                
-            except Exception as e:
-                message_placeholder.markdown("⚠️ Connection issue. Please check your internet and try again.")
+                    full_response = "Error: Could not generate response. Follow basic safety: Outdoors only, CO detectors installed."
+                    message_placeholder.markdown(full_response)
+            except:
+                full_response = "Connection issue. Key safety: Generator outdoors 20+ ft, cool before refuel."
+                message_placeholder.markdown(full_response)
             
-            st.session_state.messages.append({"role": "assistant", "content": full_response if full_response else "⚠️ Unable to get response."})
+    st.session_state.messages.append({"role": "assistant", "content": full_response or response})
 
-# --- Footer with official resources ---
+# --- FOOTER ---
 st.markdown("""
 <div class="footer">
-    <span style="color: #888;">Official Resources:</span>
-    <a href="https://uncw.edu/emergency-safety" target="_blank">UNCW Emergency</a> • 
-    <a href="https://www.nhc.noaa.gov" target="_blank">National Hurricane Center</a> • 
-    <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html" target="_blank">Red Cross Generator Safety</a> • 
-    <a href="https://uncw.edu/about/university-administration/business-affairs/environmental-health-safety/ems/severe-weather/hurricane" target="_blank">UNCW Hurricane Guide</a>
+    <strong>Resources:</strong>
+    <a href="https://uncw.edu/emergency-safety" target="_blank">UNCW Emergency</a> |
+    <a href="https://www.nhc.noaa.gov" target="_blank">NHC</a> |
+    <a href="https://www.redcross.org" target="_blank">Red Cross</a> |
+    <a href="https://uncw.edu" target="_blank">UNCW Guide</a>
     <br>
-    <span style="color: #666; font-size: 0.7rem;">Emergency: 911 | Poison Control: 1-800-222-1222</span>
+    Emergency: 911 | Poison: 1-800-222-1222 | Updated: Feb 2026
 </div>
 """, unsafe_allow_html=True)
