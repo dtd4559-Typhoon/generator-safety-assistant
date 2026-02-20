@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 from groq import Groq
 
@@ -203,3 +202,4 @@ if prompt := st.chat_input("Ask about generator safety or hurricanes:"):
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 ```
+
