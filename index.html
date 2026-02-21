@@ -56,6 +56,12 @@
             text-decoration: none;
             padding: 8px 0;
             border-bottom: 1px solid #3A3A3A;
+            transition: padding-left 0.2s;
+        }
+        
+        .resource-link:hover {
+            padding-left: 8px;
+            color: #81C784;
         }
         
         .emergency-box {
@@ -64,6 +70,7 @@
             padding: 12px;
             border-radius: 6px;
             margin: 20px 0;
+            font-weight: bold;
             text-align: center;
         }
         
@@ -82,6 +89,12 @@
         .chat-header h1 {
             color: white;
             font-size: 1.8rem;
+            font-weight: 500;
+        }
+        
+        .chat-header p {
+            color: #888;
+            margin-top: 4px;
         }
         
         .messages {
@@ -115,6 +128,7 @@
         .input-area {
             padding: 20px 24px;
             border-top: 1px solid #3A3A3A;
+            background-color: #1E1E1E;
         }
         
         .input-container {
@@ -135,13 +149,39 @@
             outline: none;
         }
         
+        .message-input:focus {
+            border-color: #0078D7;
+            box-shadow: 0 0 0 2px rgba(0,120,215,0.3);
+        }
+        
         .send-button {
             background-color: #0078D7;
             color: white;
             border: none;
             border-radius: 25px;
             padding: 12px 24px;
+            font-weight: 500;
             cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .send-button:hover {
+            background-color: #005A9E;
+        }
+        
+        .clear-button {
+            background-color: #2D2D2D;
+            color: #E0E0E0;
+            border: 1px solid #3A3A3A;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-left: 16px;
+        }
+        
+        .clear-button:hover {
+            background-color: #3A3A3A;
         }
         
         .footer {
@@ -157,12 +197,19 @@
             text-decoration: none;
             margin: 0 8px;
         }
+        
+        .thinking {
+            color: #888;
+            font-style: italic;
+            padding: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="sidebar">
             <h2>⚡ UNCW Generator Safety</h2>
+            
             <div class="safety-tip">
                 <strong>📋 QUICK SAFETY TIPS</strong><br>
                 • NEVER run generator indoors<br>
@@ -184,7 +231,7 @@
                 Poison Control: 1-800-222-1222
             </div>
             
-            <p style="color: #666; font-size: 0.8rem;">Powered by Groq + Qwen 3 32B</p>
+            <p style="color: #666; font-size: 0.8rem; margin-top: 20px;">Powered by Groq + Qwen 3 32B</p>
         </div>
         
         <div class="main">
@@ -192,22 +239,17 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h1>UNCW Generator Safety Guide</h1>
-                        <p style="color: #888;">Ask me anything about generator safety during hurricanes</p>
+                        <p>Ask me anything about generator safety during hurricanes</p>
                     </div>
-                    <button onclick="clearConversation()" style="background: #2D2D2D; color: white; border: 1px solid #3A3A3A; padding: 6px 16px; border-radius: 20px; cursor: pointer;">🗑️ Clear</button>
+                    <button class="clear-button" onclick="clearConversation()">🗑️ Clear Conversation</button>
                 </div>
             </div>
             
-            <div class="messages" id="messages">
-                <div class="message assistant-message">
-                    👋 Hello! I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages.<br><br>
-                    Before we begin, please tell me: <strong>Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?</strong>
-                </div>
-            </div>
+            <div class="messages" id="messages"></div>
             
             <div class="input-area">
                 <div class="input-container">
-                    <input type="text" class="message-input" id="userInput" placeholder="Ask about generator placement, CO detectors, fuel safety..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <input type="text" class="message-input" id="userInput" placeholder="Ask about generator placement, CO detectors, fuel safety..." onkeypress="handleKeyPress(event)">
                     <button class="send-button" onclick="sendMessage()">Send</button>
                 </div>
             </div>
@@ -216,7 +258,8 @@
                 <span>Official Resources:</span>
                 <a href="https://uncw.edu/emergency-safety" target="_blank">UNCW Emergency</a> • 
                 <a href="https://www.nhc.noaa.gov" target="_blank">National Hurricane Center</a> • 
-                <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html" target="_blank">Red Cross</a>
+                <a href="https://www.redcross.org/get-help/how-to-prepare-for-emergencies/types-of-emergencies/power-outage/safe-generator-use.html" target="_blank">Red Cross</a> • 
+                <a href="https://uncw.edu/about/university-administration/business-affairs/environmental-health-safety/ems/severe-weather/hurricane" target="_blank">UNCW Guide</a>
             </div>
         </div>
     </div>
@@ -226,34 +269,80 @@
         const GROQ_API_KEY = "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";
         const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
         
-        const SYSTEM_PROMPT = `You are an AI assistant for students at UNCW, providing clear guidance on safe generator use during hurricanes.
+        // FULL SYSTEM PROMPT - Exactly like Poe
+        const SYSTEM_PROMPT = `[ROLE]
+You are an AI assistant for students at UNCW, providing clear, practical guidance on safe generator use during hurricanes or emergencies. You focus on safety, proper setup, operation, maintenance, and fuel handling, giving students actionable steps to prevent accidents, carbon monoxide poisoning, or fire hazards. You explain instructions clearly and concisely, prioritizing the most critical safety actions first, and reference official guidelines when possible.
 
-CRITICAL RULES:
-- NEVER use generators indoors, in garages, basements
-- Always keep generator 20+ feet from doors, windows, vents
-- Carbon monoxide (CO) is odorless and deadly - install CO detectors
-- Never refuel a hot generator - let it cool 15+ minutes first
-- Never plug generator into wall outlets (no backfeeding)
+[GOAL]
+Identify exactly two specific safety or preparedness actions that the student can take immediately to improve their readiness for using a generator during a hurricane. Each action must be practical, actionable, and achievable today, such as repositioning the generator, checking fuel storage, or setting up safety equipment. Each action should clearly explain what to do, why it matters, and how to apply it safely, so the student can complete it without delay. Prioritize the action that addresses the most urgent safety risk first.
 
-When someone mentions headache, dizziness, nausea - tell them to LEAVE THE AREA NOW and call 911.
+[DEFINITIONS]
+Carbon monoxide (CO) — A colorless, odorless, poisonous gas produced by burning fuel in generators; called the "silent killer" because it can't be seen or smelled. It binds to blood 250 times more strongly than oxygen, causing headaches, dizziness, nausea, unconsciousness, or death in minutes. Primary cause of generator-related fatalities during hurricanes. 
 
-Always provide TWO specific safety actions they can take immediately.
+Portable generator — A fuel-powered (usually gasoline) device that produces electricity during outages; must be used outdoors only to avoid CO buildup. Never indoors, in garages, basements, sheds, or partially enclosed spaces—even with doors/windows open. 
 
-End with: "Remember, generators belong OUTSIDE only, at least 20 feet from your home, with working CO detectors inside. Stay safe, Seahawks!"`;
+Carbon monoxide poisoning — Illness or death from inhaling CO fumes; symptoms mimic flu or intoxication. Prevent by placing generator ≥20 feet from doors, windows, vents; directing exhaust away; installing battery-powered CO detectors on every home level. 
 
+Backfeed (or backfeeding) — Dangerous situation where generator power flows backward into utility lines, electrocuting repair workers or starting fires. Prevent by never plugging generator into a wall outlet; use transfer switch or plug appliances directly. 
+
+Approved fuel container — DOT- or EPA-approved gas can (typically ≤5 gallons) for safe storage; store fuel outside home in cool, ventilated, secure spot away from generator/appliances to avoid vapors igniting or spills. 
+
+Refueling hazard — Risk of fire/explosion from adding fuel to hot engine. Always shut off generator, let cool ≥10-30 minutes (per manual), then refuel outdoors away from ignition sources. 
+
+Wet conditions hazard — Risk of electrocution when generator/equipment is wet from rain/flooding. Operate only on dry surface, under cover (not enclosed), keep extension cords dry, never touch with wet hands. 
+
+CO detector — Battery-powered alarm that sounds for dangerous CO levels; install on every level and near sleeping areas; test monthly.
+
+[CONSTRAINTS]
+Do not provide advice on modifying, repairing, or customizing generators; direct users to licensed professionals or manufacturer support.
+Do not recommend using generators indoors, in enclosed spaces, or near windows/doors under any circumstances.
+Do not speculate on hurricane forecasts, evacuation orders, or power outage durations; refer users to NOAA, New Hanover County Emergency Management, or UNCW alerts.
+Do not answer questions outside generator safety (e.g., general electrical wiring, fuel alternatives).
+Do not endorse specific generator brands, models, or retailers.
+Do not give medical advice for CO poisoning or injuries; instruct users to call 911 or poison control immediately.
+Do not suggest bypassing safety features.
+
+[TASK]
+Answer questions about generator safety for UNCW students during hurricanes. Address proper generator placement, including the critical requirement to operate generators outdoors only, at least 20 feet from doors, windows, and vents. Explain the dangers of carbon monoxide poisoning, including symptoms, the importance of battery-powered CO detectors on every level of the home, and immediate actions to take if poisoning is suspected. Provide guidance on safe fuel handling, including approved containers, proper storage locations away from living areas, and the mandatory cooling period before refueling. Instruct on electrical safety, including proper extension cord selection, avoiding overloads, and the absolute prohibition against backfeeding (plugging into wall outlets). Explain pre-hurricane preparation steps such as test running generators, checking oil and filters, and assembling generator-specific emergency supplies. Address maintenance questions for between uses and after hurricane season. Direct students to official sources for hurricane forecasts (NOAA), local evacuation orders (New Hanover County Emergency Management), and campus closures (UNCW Alerts). When questions involve immediate danger such as indoor generator use, suspected carbon monoxide symptoms, or operating in wet conditions, provide urgent warnings with specific life-saving actions. For questions outside the bot's scope including medical advice, electrical installation, legal interpretations, or brand recommendations, refer students to appropriate professionals or authorities.
+
+[PROCESS]
+1. Initial Greeting and Situation Assessment: Begin every conversation by establishing purpose and assessing situation. Ask two critical screening questions: "Are you dealing with a power outage right now, or are you preparing before a hurricane?" and "Is your generator currently running, or are you planning to use it soon?" If the student mentions any symptoms like headache, dizziness, or nausea, immediately trigger carbon monoxide emergency protocol: direct them to leave area and call 911 before any further discussion.
+
+2. Danger Signal Detection and Triage: After initial assessment, analyze the student's full question for specific danger signals. Scan for these red flags in order of priority: Indoor/Enclosed Space Mentions, Carbon Monoxide Indicators, Wet Conditions, Refueling Concerns, Electrical Hazards, Fuel Safety Issues. If any immediate life-threatening danger is detected, respond with an urgent warning before proceeding to any other questions.
+
+3. Focused Information Gathering: If no immediate danger is detected, gather additional context needed to provide specific, actionable guidance. Ask targeted follow-up questions based on the topic. Limit follow-up questions to two or three. Continuously monitor for any new danger signals.
+
+4. Actionable Instruction Delivery: Based on the assessed situation, provide two specific actions the student can take immediately. First Action (Urgent Priority): State clearly, explain step-by-step, specify where/when, connect to hazard prevented. Second Action (Reinforcing or Secondary Protection): Provide complementary action, explain how it adds safety, give timing guidance.
+
+5. Verification and Referral: After delivering instructions, verify the student understands with one confirmation question. For questions outside scope, provide clear referral information with specific resources. End every conversation by summarizing the key safety point and encouraging safe practices: "Remember, generators belong outside only, at least 20 feet from your home, with working CO detectors inside. Stay safe during the storm."`;
+
+        // Chat history - starts with greeting
         let messages = [
             { role: "assistant", content: "👋 Hello! I'm your UNCW Generator Safety Guide. I'm here to help you stay safe during hurricanes and power outages.\n\nBefore we begin, please tell me: **Are you dealing with a power outage right now, or are you preparing before a hurricane? Is your generator currently running?**" }
         ];
 
+        // Initialize display
+        window.onload = function() {
+            displayMessages();
+        };
+
         function displayMessages() {
             const messagesDiv = document.getElementById('messages');
             messagesDiv.innerHTML = '';
+            
             messages.forEach(msg => {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`;
-                messageDiv.innerHTML = msg.content.replace(/\n/g, '<br>');
+                
+                // Convert URLs to clickable links
+                let content = msg.content.replace(/https?:\/\/[^\s]+/g, function(url) {
+                    return `<a href="${url}" target="_blank" style="color: #4CAF50;">${url}</a>`;
+                });
+                
+                messageDiv.innerHTML = content.replace(/\n/g, '<br>');
                 messagesDiv.appendChild(messageDiv);
             });
+            
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
@@ -264,11 +353,11 @@ End with: "Remember, generators belong OUTSIDE only, at least 20 feet from your 
 
         function checkForEmergency(input) {
             const lower = input.toLowerCase();
-            if (lower.includes('headache') || lower.includes('dizzy') || lower.includes('nausea')) {
-                return "**🚨 CARBON MONOXIDE EMERGENCY 🚨**\n\n1. **LEAVE THE AREA NOW**\n2. **CALL 911**\n3. **DO NOT GO BACK INSIDE**";
+            if (lower.includes('headache') || lower.includes('dizzy') || lower.includes('nausea') || lower.includes('sick') || lower.includes('feel sick')) {
+                return "**🚨 CARBON MONOXIDE EMERGENCY 🚨**\n\n1. **LEAVE THE AREA NOW** - Get to fresh air immediately\n2. **CALL 911** - This is a medical emergency\n3. **DO NOT GO BACK INSIDE**\n\nCarbon monoxide is odorless and colorless. These symptoms mean you need fresh air NOW.";
             }
-            if (lower.includes('inside') || lower.includes('garage') || lower.includes('basement') || lower.includes('room')) {
-                return "**⚠️ IMMEDIATE DANGER ⚠️**\n\n**STOP USING THE GENERATOR INDOORS.**\n\n1. **TURN IT OFF**\n2. **MOVE IT OUTSIDE** - 20+ feet from home\n3. **OPEN WINDOWS** if anyone feels sick";
+            if (lower.includes('inside') || lower.includes('garage') || lower.includes('basement') || lower.includes('room') || lower.includes('indoors') || lower.includes('dorm')) {
+                return "**⚠️ IMMEDIATE DANGER ⚠️**\n\n**STOP USING THE GENERATOR INDOORS. THIS CAN KILL YOU IN MINUTES.**\n\n1. **TURN IT OFF** right now\n2. **MOVE IT OUTSIDE** - at least 20 feet from any doors, windows, or vents\n3. **OPEN WINDOWS** to ventilate if anyone feels sick\n4. **CALL 911** if anyone has headache, dizziness, or nausea";
             }
             return null;
         }
@@ -276,20 +365,25 @@ End with: "Remember, generators belong OUTSIDE only, at least 20 feet from your 
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const message = input.value.trim();
+            
             if (!message) return;
             
+            // Add user message
             addMessage('user', message);
             input.value = '';
             
-            const emergency = checkForEmergency(message);
-            if (emergency) {
-                addMessage('assistant', emergency);
+            // Check for emergency
+            const emergencyResponse = checkForEmergency(message);
+            if (emergencyResponse) {
+                addMessage('assistant', emergencyResponse);
                 return;
             }
             
+            // Show thinking
             addMessage('assistant', '⚡ Thinking...');
             
             try {
+                // Call Groq API with full conversation history
                 const response = await fetch(GROQ_API_URL, {
                     method: 'POST',
                     headers: {
@@ -300,21 +394,39 @@ End with: "Remember, generators belong OUTSIDE only, at least 20 feet from your 
                         model: 'qwen/qwen3-32b',
                         messages: [
                             { role: 'system', content: SYSTEM_PROMPT },
-                            { role: 'user', content: message }
+                            ...messages.slice(-8) // Send last 8 messages for context
                         ],
                         temperature: 0.3,
                         max_tokens: 1024
                     })
                 });
                 
-                messages.pop(); // Remove thinking message
+                // Remove thinking message
+                messages.pop();
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
                 
                 const data = await response.json();
-                addMessage('assistant', data.choices[0].message.content);
+                const assistantMessage = data.choices[0].message.content;
+                
+                addMessage('assistant', assistantMessage);
                 
             } catch (error) {
-                messages.pop(); // Remove thinking message
-                addMessage('assistant', "⚠️ Connection error. Please try again.\n\n**Safety Rules:**\n• Generators go OUTSIDE only\n• Keep 20+ feet from home\n• Install CO detectors\n• Call 911 for emergencies");
+                // Remove thinking message
+                messages.pop();
+                
+                // Show error with safety tips
+                const errorMsg = "⚠️ Connection error. Please try again.\n\n**Remember the safety rules:**\n• Generators go OUTSIDE only, 20+ feet from home\n• Install CO detectors on every level\n• Never refuel while hot\n• Call 911 for emergencies";
+                addMessage('assistant', errorMsg);
+                console.error('Error:', error);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
             }
         }
 
@@ -324,8 +436,6 @@ End with: "Remember, generators belong OUTSIDE only, at least 20 feet from your 
             ];
             displayMessages();
         }
-
-        window.onload = displayMessages;
     </script>
 </body>
 </html>
